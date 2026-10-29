@@ -1,0 +1,171 @@
+<div class="controls">
+  <div class="row">
+    <select
+      class="field source"
+      [value]="source()"
+      [disabled]="takes.state() !== 'idle'"
+      (change)="selectSource($any($event.target).value)"
+      aria-label="Son joué"
+    >
+      <option value="synth">Synthé (réglage en cours)</option>
+      @for (group of instruments; track group.family) {
+        <optgroup [label]="group.family">
+          @for (preset of group.presets; track preset.key) {
+            <option [value]="'factory:' + preset.key">{{ preset.name }}</option>
+          }
+        </optgroup>
+      }
+      @if (library.samples().length) {
+        <optgroup label="Samples">
+          @for (sample of library.samples(); track sample.id) {
+            <option [value]="'sample:' + sample.id">{{ sample.name }}</option>
+          }
+        </optgroup>
+      }
+    </select>
+    <div class="octave">
+      <button type="button" class="btn small" (click)="shiftOctave(-1)" aria-label="Octave inférieure">−</button>
+      <span>{{ range() }}</span>
+      <button type="button" class="btn small" (click)="shiftOctave(1)" aria-label="Octave supérieure">+</button>
+    </div>
+    <button type="button" class="btn small" [class.primary]="sustain()" (click)="toggleSustain()">Sustain</button>
+  </div>
+
+  <div class="recorder">
+    <button
+      type="button"
+      class="rec"
+      [class.armed]="takes.state() === 'countin'"
+      [class.on]="takes.state() === 'recording'"
+      (click)="toggleRecord()"
+      [attr.aria-label]="takes.state() === 'idle' ? 'Enregistrer' : 'Arrêter l’enregistrement'"
+    >
+      <span></span>
+    </button>
+    <span class="rec-status" [class.live]="takes.state() !== 'idle'">{{ status() }}</span>
+    <app-knob
+      class="tempo"
+      label="Tempo"
+      [value]="metronome.bpm()"
+      (valueChange)="metronome.setBpm($event)"
+      [min]="40"
+      [max]="240"
+      [step]="1"
+      [defaultValue]="120"
+      [format]="fmt.bpm"
+    />
+    <button type="button" class="btn small" (click)="takesOpen.set(true)">Prises ({{ takes.takes().length }})</button>
+  </div>
+  @if (message(); as m) {
+    <p class="notice" [class.error]="m.error">{{ m.text }}</p>
+  }
+
+  @if (isSample()) {
+    @let s = settings();
+    <div class="knob-row">
+      <app-knob label="Volume" [value]="s.volume" (valueChange)="setSetting('volume', $event)" [defaultValue]="0.8" [format]="fmt.percent" />
+      <app-knob label="Filtre" [value]="s.cutoff" (valueChange)="setSetting('cutoff', $event)" [defaultValue]="1" [format]="fmt.cutoff" />
+      <app-knob label="Release" [value]="release()" (valueChange)="release.set($event)" [min]="0.01" [max]="3" [defaultValue]="0.3" [format]="fmt.time" />
+      <app-knob label="Racine" [value]="rootNote()" (valueChange)="rootNote.set($event)" [min]="36" [max]="84" [step]="1" [defaultValue]="60" [format]="fmt.note" />
+    </div>
+  } @else if (source() === 'synth') {
+    <p class="notice hint">Son réglé dans l’onglet Synthé. <a routerLink="/synth">Modifier le son →</a></p>
+  }
+</div>
+
+<div class="keys">
+  @for (start of layout().rows; track start) {
+    <app-piano
+      [startNote]="start"
+      [octaves]="layout().octaves"
+      [highlighted]="keysDown()"
+      (noteOn)="noteOn($event)"
+      (noteOff)="noteOff($event)"
+    />
+  }
+</div>
+
+@if (takesOpen()) {
+  <div class="sheet-backdrop" (click)="takesOpen.set(false)">
+    <div class="sheet" (click)="$event.stopPropagation()">
+      <div class="sheet-head">
+        <strong>Prises enregistrées</strong>
+        <button type="button" class="btn small" (click)="takesOpen.set(false)">Fermer</button>
+      </div>
+
+      <div class="settings">
+        <span>Mesure</span>
+        <div class="segmented">
+          @for (beats of [2, 3, 4]; track beats) {
+            <button type="button" [class.on]="metronome.beatsPerBar() === beats" (click)="metronome.setBeatsPerBar(beats)">
+              {{ beats }}/4
+            </button>
+          }
+        </div>
+        <span>Décompte</span>
+        <div class="segmented">
+          <button type="button" [class.on]="!takes.countIn()" (click)="setCountIn(false)">Non</button>
+          <button type="button" [class.on]="takes.countIn()" (click)="setCountIn(true)">1 mesure</button>
+        </div>
+        <span>Calage</span>
+        <div class="segmented">
+          <button type="button" [class.on]="takes.quantize() === 0" (click)="setQuantize(0)">Libre</button>
+          <button type="button" [class.on]="takes.quantize() === 8" (click)="setQuantize(8)">Croche</button>
+          <button type="button" [class.on]="takes.quantize() === 16" (click)="setQuantize(16)">Double</button>
+        </div>
+        <span>Clic</span>
+        <div class="segmented">
+          <button type="button" [class.on]="!metronome.click()" (click)="metronome.setClick(false)">Muet</button>
+          <button type="button" [class.on]="metronome.click()" (click)="metronome.setClick(true)">Sonore</button>
+        </div>
+        <span>Lecture</span>
+        <div class="segmented">
+          <button type="button" [class.on]="!takes.loop()" (click)="setLoop(false)">Une fois</button>
+          <button type="button" [class.on]="takes.loop()" (click)="setLoop(true)">En boucle</button>
+        </div>
+      </div>
+
+      @if (message(); as m) {
+        <p class="notice" [class.error]="m.error">{{ m.text }}</p>
+      }
+
+      <ul class="take-list">
+        @for (take of takes.takes(); track take.id) {
+          <li>
+            <button
+              type="button"
+              class="play"
+              [class.on]="takes.playingId() === take.id"
+              (click)="togglePlay(take)"
+              [attr.aria-label]="takes.playingId() === take.id ? 'Arrêter' : 'Écouter'"
+            >
+              {{ takes.playingId() === take.id ? '■' : '▶' }}
+            </button>
+            <div class="meta">
+              <span class="name">{{ take.name }}</span>
+              <span class="sub">
+                {{ take.bars }} mes. · {{ take.bpm }} BPM · {{ take.beatsPerBar }}/4 · {{ take.notes.length }}
+                note{{ take.notes.length > 1 ? 's' : '' }}
+              </span>
+            </div>
+            <button
+              type="button"
+              class="btn small"
+              [disabled]="busyTake() === take.id"
+              (click)="toSample(take)"
+              title="Transformer en sample et le placer sur le pad sélectionné"
+            >
+              → {{ selectedLabel() }}
+            </button>
+            <button type="button" class="btn small danger" (click)="removeTake(take)" title="Supprimer">✕</button>
+          </li>
+        } @empty {
+          <li class="notice">
+            Aucune prise. Appuyez sur ● : le métronome démarre, compte une mesure, puis tout ce que vous jouez est enregistré
+            jusqu’au prochain appui.
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+}

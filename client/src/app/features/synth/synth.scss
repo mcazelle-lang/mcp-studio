@@ -1,0 +1,96 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.presets {
+  display: flex;
+  gap: 8px;
+
+  select { flex: 1; }
+}
+
+/* L'aperçu reste visible en haut pendant qu'on fait défiler les potards. */
+.card.scope {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 10px;
+  box-shadow: 0 8px 16px rgb(0 0 0 / .45);
+}
+
+@media (min-width: 760px) {
+  .card.scope { --scope-height: 170px; }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .card.scope { --scope-height: 80px; }
+}
+
+.sections {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 760px) {
+  .sections { grid-template-columns: 1fr 1fr; }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  > h2 { margin: 0; }
+}
+
+.knob-row.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+.segmented { align-self: flex-start; }
+
+.render .field { width: 100%; }
+
+.render-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Petit clavier de test toujours visible en bas de la vue. */
+.test-keys {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding: 8px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  --piano-height: 110px;
+
+  .octave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .keys-hint {
+    margin: 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+  }
+}
+
+/* Inutile sur écran tactile, où il n'y a pas de clavier physique. */
+@media (pointer: coarse) {
+  .test-keys .keys-hint { display: none; }
+}

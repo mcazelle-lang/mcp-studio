@@ -1,0 +1,17 @@
+{
+  "name": "mpc-server",
+  "version": "1.0.0",
+  "description": "API Node.js de l'application MPC : stockage des samples, du kit et des presets de synthé",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "start": "node index.js",
+    "start:https": "node index.js --https",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "multer": "^2.5.0",
+    "selfsigned": "^2.4.1"
+  }
+}

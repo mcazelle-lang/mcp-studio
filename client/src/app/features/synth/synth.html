@@ -1,0 +1,135 @@
+@let p = patch();
+<div class="view">
+  <div class="presets">
+    <select class="field" [value]="currentPreset()" (change)="loadPreset($any($event.target).value)" aria-label="Charger un preset">
+      <option value="">Presets…</option>
+      @for (group of factoryGroups; track group.family) {
+        <optgroup [label]="group.family">
+          @for (preset of group.presets; track preset.key) {
+            <option [value]="'factory:' + preset.key">{{ preset.name }}{{ preset.genre ? ' · ' + preset.genre : '' }}</option>
+          }
+        </optgroup>
+      }
+      @if (synth.presets().length) {
+        <optgroup label="Mes presets">
+          @for (preset of synth.presets(); track preset.id) {
+            <option [value]="'user:' + preset.id">{{ preset.name }}</option>
+          }
+        </optgroup>
+      }
+    </select>
+    <button type="button" class="btn small" (click)="savePreset()">Sauver</button>
+    <button type="button" class="btn small" (click)="initPatch()">Init</button>
+    <a class="btn small" routerLink="/help" fragment="synth" title="Guide des potards" aria-label="Guide des potards du synthé">?</a>
+  </div>
+
+  <section class="card scope">
+    <app-synth-scope [patch]="p" [follow]="scopeFocus()" />
+  </section>
+
+  <div class="sections">
+    @for (o of oscillators; track o.key) {
+      @let osc = p[o.key];
+      <section class="card">
+        <h2>{{ o.title }}</h2>
+        <div class="segmented">
+          @for (w of waves; track w.value) {
+            <button type="button" [class.on]="osc.wave === w.value" (click)="setOsc(o.key, 'wave', w.value)">{{ w.label }}</button>
+          }
+        </div>
+        <div class="knob-row three">
+          <app-knob label="Octave" [value]="osc.octave" (valueChange)="setOsc(o.key, 'octave', $event)" [min]="-2" [max]="2" [step]="1" [bipolar]="true" [defaultValue]="0" [format]="fmt.signed" />
+          <app-knob label="Détune" [value]="osc.detune" (valueChange)="setOsc(o.key, 'detune', $event)" [min]="-50" [max]="50" [step]="1" [bipolar]="true" [defaultValue]="0" [format]="fmt.signed" />
+          <app-knob label="Niveau" [value]="osc.level" (valueChange)="setOsc(o.key, 'level', $event)" [defaultValue]="0.5" [format]="fmt.percent" />
+        </div>
+      </section>
+    }
+
+    <section class="card">
+      <h2>Filtre</h2>
+      <div class="segmented">
+        @for (f of filterTypes; track f.value) {
+          <button type="button" [class.on]="p.filter.type === f.value" (click)="update('filter', { type: f.value })">{{ f.label }}</button>
+        }
+      </div>
+      <div class="knob-row">
+        <app-knob label="Cutoff" [value]="p.filter.cutoff" (valueChange)="update('filter', { cutoff: $event })" [defaultValue]="0.55" [format]="fmt.cutoff" />
+        <app-knob label="Réso" [value]="p.filter.resonance" (valueChange)="update('filter', { resonance: $event })" [min]="0.1" [max]="20" [defaultValue]="4" [format]="fmt.q" />
+        <app-knob label="Env" [value]="p.filter.envAmount" (valueChange)="update('filter', { envAmount: $event })" [defaultValue]="0.4" [format]="fmt.percent" />
+        <app-knob label="Bruit" [value]="p.noise" (valueChange)="setGlobal('noise', $event)" [defaultValue]="0" [format]="fmt.percent" />
+      </div>
+    </section>
+
+    @for (e of envelopes; track e.key) {
+      @let env = p[e.key];
+      <section class="card">
+        <h2>{{ e.title }}</h2>
+        <div class="knob-row">
+          <app-knob label="Attack" [value]="env.attack" (valueChange)="setEnv(e.key, 'attack', $event)" [max]="2" [defaultValue]="0.01" [format]="fmt.time" />
+          <app-knob label="Decay" [value]="env.decay" (valueChange)="setEnv(e.key, 'decay', $event)" [min]="0.01" [max]="3" [defaultValue]="0.3" [format]="fmt.time" />
+          <app-knob label="Sustain" [value]="env.sustain" (valueChange)="setEnv(e.key, 'sustain', $event)" [defaultValue]="0.7" [format]="fmt.percent" />
+          <app-knob label="Release" [value]="env.release" (valueChange)="setEnv(e.key, 'release', $event)" [min]="0.01" [max]="4" [defaultValue]="0.4" [format]="fmt.time" />
+        </div>
+      </section>
+    }
+
+    <section class="card">
+      <h2>LFO &amp; sortie</h2>
+      <div class="segmented">
+        @for (t of lfoTargets; track t.value) {
+          <button type="button" [class.on]="p.lfo.target === t.value" (click)="update('lfo', { target: t.value })">{{ t.label }}</button>
+        }
+      </div>
+      <div class="knob-row">
+        <app-knob label="Vitesse" [value]="p.lfo.rate" (valueChange)="update('lfo', { rate: $event })" [min]="0.1" [max]="20" [defaultValue]="5" [format]="fmt.hz" />
+        <app-knob label="Profondeur" [value]="p.lfo.depth" (valueChange)="update('lfo', { depth: $event })" [defaultValue]="0" [format]="fmt.percent" />
+        <app-knob label="Volume" [value]="p.volume" (valueChange)="setGlobal('volume', $event)" [defaultValue]="0.7" [format]="fmt.percent" />
+        <app-knob label="Saturation" [value]="p.drive" (valueChange)="setGlobal('drive', $event)" [defaultValue]="0" [format]="fmt.percent" />
+      </div>
+      <div class="segmented lfo-wave">
+        @for (w of waves; track w.value) {
+          <button type="button" [class.on]="p.lfo.wave === w.value" (click)="update('lfo', { wave: w.value })">{{ w.label }}</button>
+        }
+      </div>
+    </section>
+
+    <section class="card render">
+      <h2>Créer un sample</h2>
+      <div class="knob-row three">
+        <app-knob label="Note" [value]="renderNote()" (valueChange)="renderNote.set($event)" [min]="24" [max]="96" [step]="1" [defaultValue]="60" [format]="fmt.note" />
+        <app-knob label="Durée" [value]="renderHold()" (valueChange)="renderHold.set($event)" [min]="0.05" [max]="4" [defaultValue]="0.6" [format]="fmt.time" />
+        <input
+          class="field"
+          type="text"
+          maxlength="40"
+          [value]="renderName()"
+          (input)="renderName.set($any($event.target).value)"
+          aria-label="Nom du sample"
+        />
+      </div>
+      <div class="render-actions">
+        <button type="button" class="btn primary" [disabled]="busy()" (click)="createSample(true)">Créer sur le pad {{ selectedLabel() }}</button>
+        <button type="button" class="btn" [disabled]="busy()" (click)="createSample(false)">Bibliothèque seule</button>
+      </div>
+      @if (message()) {
+        <p class="notice">{{ message() }}</p>
+      }
+    </section>
+  </div>
+</div>
+
+<div class="test-keys">
+  <div class="octave">
+    <button type="button" class="btn small" (click)="shiftOctave(-1)" aria-label="Octave inférieure">−</button>
+    <span>Oct {{ octave() }}</span>
+    <button type="button" class="btn small" (click)="shiftOctave(1)" aria-label="Octave supérieure">+</button>
+  </div>
+  <app-piano
+    [startNote]="(octave() + 1) * 12"
+    [octaves]="1"
+    [highlighted]="keysDown()"
+    (noteOn)="synth.noteOn($event)"
+    (noteOff)="synth.noteOff($event)"
+  />
+  <p class="keys-hint">Clavier : Q S D F G H J K (noires Z E T Y U) · octave W / X</p>
+</div>

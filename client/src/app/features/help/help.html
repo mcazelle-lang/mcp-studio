@@ -1,0 +1,81 @@
+<div class="help">
+  <header class="intro">
+    <h1>Guide des potards</h1>
+    <p>
+      Pour chaque réglage : ce qu’on entend, une courbe qui montre l’effet, et un bouton ▶ pour l’écouter.
+      Tournez le potard d’une fiche pour voir la courbe changer.
+    </p>
+  </header>
+
+  <nav class="chips" aria-label="Sections">
+    @for (section of sections; track section.id) {
+      <button type="button" (click)="scrollTo(section.id)">{{ section.title }}</button>
+    }
+  </nav>
+
+  @for (section of sections; track section.id) {
+    <section class="section" [id]="'help-' + section.id">
+      <h2>{{ section.title }}</h2>
+      <p class="section-intro">{{ section.intro }}</p>
+
+      @for (group of section.groups; track group.title) {
+        <h3>{{ group.title }}</h3>
+        @if (group.intro) {
+          <p class="group-intro">{{ group.intro }}</p>
+        }
+        <div class="entries">
+          @for (item of group.items; track item.entry.id) {
+            <article class="card entry">
+              <header>
+                <h4>{{ item.entry.name }}</h4>
+                <span class="range">{{ item.entry.range }}</span>
+              </header>
+              <p class="effect">{{ item.entry.effect }}</p>
+
+              <div class="demo">
+                <app-help-figure [figure]="item.figure()" />
+                <div class="control">
+                  @if (item.knob; as knob) {
+                    <app-knob
+                      [value]="item.value()"
+                      (valueChange)="item.value.set($event)"
+                      [min]="knob.min"
+                      [max]="knob.max"
+                      [step]="knob.step ?? 0"
+                      [bipolar]="knob.bipolar ?? false"
+                      [defaultValue]="knob.value"
+                      [format]="knob.format"
+                    />
+                  }
+                  @if (item.entry.listen) {
+                    <button
+                      type="button"
+                      class="play"
+                      [class.on]="playing() === item.entry.id"
+                      (click)="listen(item)"
+                      [attr.aria-label]="'Écouter l’effet de ' + item.entry.name"
+                    >
+                      ▶
+                    </button>
+                  }
+                </div>
+              </div>
+              @if (item.choice; as choice) {
+                <div class="segmented choices">
+                  @for (option of choice.options; track option; let i = $index) {
+                    <button type="button" [class.on]="item.value() === i" (click)="item.value.set(i)">{{ option }}</button>
+                  }
+                </div>
+              }
+
+              <p class="details">{{ item.entry.details }}</p>
+              @if (item.entry.tip) {
+                <p class="tip"><strong>Astuce</strong> {{ item.entry.tip }}</p>
+              }
+            </article>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

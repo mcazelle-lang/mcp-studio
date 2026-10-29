@@ -1,0 +1,148 @@
+<div class="pads-layout">
+  <section class="performance">
+    <div class="toolbar">
+      <div class="segmented" role="tablist" aria-label="Banque">
+        @for (bank of banks; track bank; let i = $index) {
+          <button type="button" [class.on]="kitService.bank() === i" (click)="kitService.bank.set(i)">{{ bank }}</button>
+        }
+      </div>
+      <button type="button" class="btn small" (click)="kitsOpen.set(true)">Kits</button>
+      <button
+        type="button"
+        class="btn small"
+        [class.primary]="fullLevel()"
+        (click)="fullLevel.set(!fullLevel())"
+        title="Désactivé : la force dépend de la hauteur de frappe sur le pad"
+      >
+        Full level
+      </button>
+      <app-knob
+        class="master"
+        label="Master"
+        [value]="kitService.kit().master"
+        (valueChange)="kitService.setMaster($event)"
+        [defaultValue]="0.8"
+        [format]="fmt.percent"
+      />
+    </div>
+
+    <div class="grid">
+      @for (pad of pads(); track pad.index) {
+        <button
+          type="button"
+          class="pad"
+          [class.loaded]="!!pad.sample"
+          [class.hit]="hits().has(pad.index)"
+          [class.selected]="kitService.selected() === pad.index"
+          (pointerdown)="padDown($event, pad.index)"
+          (pointerup)="padUp($event)"
+          (pointercancel)="padUp($event)"
+          (contextmenu)="$event.preventDefault()"
+        >
+          <span class="pad-label">{{ pad.label }}</span>
+          <span class="pad-name">{{ pad.shortName }}</span>
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="card editor">
+    <div class="editor-head">
+      <div class="title">
+        <strong>Pad {{ selected().label }}</strong>
+        <span>{{ selected().sample?.name ?? 'Aucun sample' }}</span>
+      </div>
+      <button type="button" class="btn small primary" (click)="pickerOpen.set(true)">Sample…</button>
+    </div>
+
+    @let s = selected().settings;
+    <div class="knob-row">
+      <app-knob label="Volume" [value]="s.volume" (valueChange)="set('volume', $event)" [defaultValue]="defaults.volume" [format]="fmt.percent" />
+      <app-knob label="Tune" [value]="s.pitch" (valueChange)="set('pitch', $event)" [min]="-24" [max]="24" [step]="1" [bipolar]="true" [defaultValue]="0" [format]="fmt.pitch" />
+      <app-knob label="Pan" [value]="s.pan" (valueChange)="set('pan', $event)" [min]="-1" [max]="1" [bipolar]="true" [defaultValue]="0" [format]="fmt.pan" />
+      <app-knob label="Filtre" [value]="s.cutoff" (valueChange)="set('cutoff', $event)" [defaultValue]="1" [format]="fmt.cutoff" />
+      <app-knob label="Attaque" [value]="s.attack" (valueChange)="set('attack', $event)" [max]="1" [defaultValue]="0" [format]="fmt.time" />
+      <app-knob label="Decay" [value]="s.decay" (valueChange)="set('decay', $event)" [min]="0.02" [max]="decayHold" [defaultValue]="decayHold" [format]="fmt.decay" />
+      <app-knob label="Start" [value]="s.start" (valueChange)="set('start', $event)" [max]="0.95" [defaultValue]="0" [format]="fmt.percent" />
+      <app-knob label="Reverb" [value]="s.reverb" (valueChange)="set('reverb', $event)" [defaultValue]="0" [format]="fmt.percent" />
+    </div>
+
+    <div class="switches">
+      <div class="segmented">
+        <button type="button" [class.on]="s.mode === 'oneshot'" (click)="set('mode', 'oneshot')">One-shot</button>
+        <button type="button" [class.on]="s.mode === 'gate'" (click)="set('mode', 'gate')">Gate</button>
+      </div>
+      <button type="button" class="btn small" [class.primary]="s.reverse" (click)="set('reverse', !s.reverse)">Reverse</button>
+      <button type="button" class="btn small" (click)="kitService.resetSettings(selected().index)">Reset</button>
+    </div>
+    <p class="notice hint">
+      Glissez verticalement sur un potard pour le tourner, double-tap pour le réinitialiser.
+      <a routerLink="/help" fragment="pads">Que fait chaque potard ?</a>
+    </p>
+  </section>
+</div>
+
+@if (kitsOpen()) {
+  <div class="sheet-backdrop" (click)="kitService.loadingPreset() || kitsOpen.set(false)">
+    <div class="sheet" (click)="$event.stopPropagation()">
+      <div class="sheet-head">
+        <strong>Kits — banque {{ banks[kitService.bank()] }}</strong>
+        <button type="button" class="btn small" [disabled]="!!kitService.loadingPreset()" (click)="kitsOpen.set(false)">Fermer</button>
+      </div>
+      @if (kitService.loadingPreset(); as loading) {
+        <p class="notice">Création des sons {{ loading.name }}… {{ loading.done }}/{{ loading.total }}</p>
+        <div class="progress"><div [style.width.%]="(loading.done / loading.total) * 100"></div></div>
+      } @else {
+        <p class="notice">
+          Remplace les 16 pads de la banque et règle le métronome sur le tempo du kit. Les sons sont générés puis ajoutés à la
+          bibliothèque.
+        </p>
+        @for (group of kitGroups; track group.group) {
+          <h3 class="kit-group">{{ group.group }}</h3>
+          <ul class="kits">
+            @for (preset of group.presets; track preset.key) {
+              <li>
+                <button type="button" class="kit" (click)="loadKit(preset)">
+                  <strong>{{ preset.name }}</strong>
+                  <span class="bpm">{{ preset.bpm }} BPM</span>
+                  <span class="desc">{{ preset.description }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+      @if (kitError()) {
+        <p class="notice error">{{ kitError() }}</p>
+      }
+    </div>
+  </div>
+}
+
+@if (pickerOpen()) {
+  <div class="sheet-backdrop" (click)="pickerOpen.set(false)">
+    <div class="sheet" (click)="$event.stopPropagation()">
+      <div class="sheet-head">
+        <strong>Sample du pad {{ selected().label }}</strong>
+        <button type="button" class="btn small" (click)="pickerOpen.set(false)">Fermer</button>
+      </div>
+      <ul class="picker">
+        <li>
+          <button type="button" class="pick" [class.current]="!selected().sample" (click)="assign(null)">— Aucun —</button>
+        </li>
+        @for (sample of library.samples(); track sample.id) {
+          <li>
+            <button type="button" class="btn small" (click)="preview(sample.id)" aria-label="Écouter">▶</button>
+            <button type="button" class="pick" [class.current]="selected().sample?.id === sample.id" (click)="assign(sample.id)">
+              {{ sample.name }}
+            </button>
+          </li>
+        } @empty {
+          <li class="notice">
+            Aucun sample pour l’instant. <a routerLink="/samples" (click)="pickerOpen.set(false)">Enregistrez ou importez-en un</a>.
+          </li>
+        }
+      </ul>
+    </div>
+  </div>
+}

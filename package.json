@@ -1,0 +1,16 @@
+{
+  "name": "mpc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MPC web : sampler mobile (Angular + Node.js)",
+  "scripts": {
+    "postinstall": "cd server && npm install && cd ../client && npm install",
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"cd server && npm run dev\" \"cd client && npm start -- --host 0.0.0.0\"",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "start:https": "cd server && npm run start:https"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

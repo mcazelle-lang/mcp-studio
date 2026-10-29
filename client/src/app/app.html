@@ -1,0 +1,88 @@
+<header class="topbar">
+  <div class="brand">MPC<span>web</span></div>
+  <div class="status">
+    <span class="pill" title="Pad sélectionné">PAD {{ selectedLabel() }}</span>
+    <button
+      type="button"
+      class="metro"
+      [class.running]="metronome.running()"
+      (click)="metronome.toggle()"
+      [title]="metronome.running() ? 'Arrêter le métronome (' + metronome.bpm() + ' BPM)' : 'Démarrer le métronome (' + metronome.bpm() + ' BPM)'"
+      [attr.aria-label]="metronome.running() ? 'Arrêter le métronome' : 'Démarrer le métronome'"
+      [attr.aria-pressed]="metronome.running()"
+    >
+      <!-- Un nouvel élément à chaque temps : son animation de flash repart de zéro. -->
+      @if (metronome.beat(); as beat) {
+        @for (b of [beat]; track b.index) {
+          <span class="flash" [class.downbeat]="b.downbeat"></span>
+        }
+      }
+    </button>
+    <button
+      type="button"
+      class="dot"
+      [class.on]="engine.running()"
+      [class.slow]="audioWarning()"
+      (click)="toggleLatency()"
+      [title]="engine.running() ? 'Audio actif — toucher pour le diagnostic' : 'Touchez l’écran pour activer l’audio'"
+      aria-label="Diagnostic audio"
+    ></button>
+    <a class="help-link" routerLink="/help" routerLinkActive="active" title="Guide des potards" aria-label="Guide des potards">?</a>
+    <button class="panic" type="button" (click)="panic()" title="Couper tous les sons">STOP</button>
+  </div>
+</header>
+
+@if (latency(); as l) {
+  <div class="latency-backdrop" (click)="latency.set(null)">
+    <div class="latency" role="dialog" aria-label="Diagnostic audio" (click)="$event.stopPropagation()">
+      <strong>Diagnostic audio de cet appareil</strong>
+      <dl>
+        <dt>Traitement du navigateur</dt>
+        <dd>{{ l.processing }} ms</dd>
+        <dt>Sortie (jusqu’au haut-parleur)</dt>
+        <dd>{{ l.output !== null ? l.output + ' ms' : 'non communiquée' }}</dd>
+        <dt>Latence totale estimée</dt>
+        <dd [class.bad]="latencyWarning()">{{ l.processing + (l.output ?? 0) }} ms</dd>
+        <dt>Coupures (son qui saute) depuis l’ouverture</dt>
+        <dd [class.bad]="(glitches() ?? 0) > 0">{{ glitches() ?? 'non mesurées' }}</dd>
+      </dl>
+      <div class="mode">
+        <span>Mode audio</span>
+        <div class="segmented">
+          <button type="button" [class.on]="engine.mode === 'reactive'" (click)="setAudioMode('reactive')">Réactif</button>
+          <button type="button" [class.on]="engine.mode === 'stable'" (click)="setAudioMode('stable')">Stable</button>
+        </div>
+      </div>
+      <p>
+        <b>Le son grésille ou saute ?</b> Passez en <b>Stable</b> : le moteur audio prend plus de marge (un peu plus de
+        latence, ≈ 20 à 40 ms), ce qui évite les coupures quand l’appareil est chargé. Fermer les autres onglets et applis
+        aide aussi. Changer de mode recharge la page.
+      </p>
+      <p>
+        L’app elle-même met 1 à 10 ms entre l’appui et le son. Au-delà d’environ 30 ms au total, le décalage s’entend.
+      </p>
+      <p>
+        <b>Causes d’un gros décalage (100 à 300 ms) :</b> casque ou enceinte <b>Bluetooth</b> (la plus fréquente), sortie
+        audio d’un écran HDMI, certains téléphones Android, « améliorations audio » de Windows. Essayez un casque filaire ou les
+        haut-parleurs intégrés.
+      </p>
+      @if (l.output === null) {
+        <p class="muted">Ce navigateur n’indique pas la latence de sortie (c’est le cas de Safari) : le total réel peut être plus élevé.</p>
+      }
+      <button type="button" class="btn small" (click)="latency.set(null)">Fermer</button>
+    </div>
+  </div>
+}
+
+<main>
+  <router-outlet />
+</main>
+
+<nav class="tabbar">
+  @for (tab of tabs; track tab.path) {
+    <a [routerLink]="tab.path" routerLinkActive="active" [attr.aria-label]="tab.label">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path [attr.d]="tab.icon" /></svg>
+      <span>{{ tab.label }}</span>
+    </a>
+  }
+</nav>

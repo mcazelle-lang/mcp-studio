@@ -1,0 +1,127 @@
+<div class="view">
+  <section class="card">
+    <h2>Enregistrer / importer</h2>
+
+    @if (!recorder.supported) {
+      <p class="notice error">
+        L’enregistrement n’est pas disponible : le micro nécessite HTTPS (ou localhost) et un navigateur récent.
+      </p>
+    }
+
+    <div class="rec-row">
+      <button
+        type="button"
+        class="rec"
+        [class.on]="recorder.recording()"
+        [disabled]="!recorder.supported || busy()"
+        (click)="toggleRecord()"
+        [attr.aria-label]="recorder.recording() ? 'Arrêter' : 'Enregistrer'"
+      >
+        <span></span>
+      </button>
+      <div class="rec-info">
+        <div class="time">
+          {{ recorder.recording() ? recorder.elapsed().toFixed(1) + ' s' : 'Prêt' }}
+          <small>max {{ maxSeconds }} s</small>
+        </div>
+        <div class="meter"><div [style.width.%]="recorder.level() * 100" [class.clip]="recorder.level() > 0.98"></div></div>
+      </div>
+      <label class="btn" [class.disabled]="busy()">
+        Importer
+        <input type="file" accept="audio/*,.wav,.mp3,.ogg,.m4a,.aac,.flac,.webm" multiple hidden (change)="importFiles($event)" />
+      </label>
+    </div>
+
+    <label class="check">
+      <input type="checkbox" [checked]="assignAfterSave()" (change)="assignAfterSave.set($any($event.target).checked)" />
+      Affecter au pad sélectionné ({{ selectedLabel() }})
+    </label>
+
+    @if (message(); as m) {
+      <p class="notice" [class.error]="m.error">{{ m.text }}</p>
+    }
+
+    @if (draft(); as d) {
+      <div class="draft">
+        <app-waveform
+          [buffer]="d.buffer"
+          [trimmable]="true"
+          [(start)]="trimStart"
+          [(end)]="trimEnd"
+          [playhead]="playhead()"
+        />
+        <div class="draft-row">
+          <button type="button" class="btn" (click)="previewDraft()">{{ playingId() === 'draft' ? '■ Stop' : '▶ Écouter' }}</button>
+          <span class="duration">{{ formatDuration(draftDuration()) }}</span>
+          <label class="check">
+            <input type="checkbox" [checked]="normalize()" (change)="normalize.set($any($event.target).checked)" />
+            Normaliser
+          </label>
+        </div>
+        <div class="draft-row">
+          <input
+            class="field name"
+            type="text"
+            maxlength="60"
+            [value]="draftName()"
+            (input)="draftName.set($any($event.target).value)"
+            aria-label="Nom du sample"
+          />
+          <button type="button" class="btn primary" [disabled]="busy()" (click)="saveDraft()">Sauver</button>
+          <button type="button" class="btn" (click)="discardDraft()">Annuler</button>
+        </div>
+        <p class="notice">Déplacez les poignées pour découper le début et la fin du sample.</p>
+      </div>
+    }
+  </section>
+
+  <section class="card">
+    <h2>Bibliothèque ({{ library.samples().length }})</h2>
+    <div class="segmented filters">
+      @for (f of filters; track f.value) {
+        <button type="button" [class.on]="filter() === f.value" (click)="filter.set(f.value)">{{ f.label }}</button>
+      }
+    </div>
+
+    <ul class="library">
+      @for (sample of visibleSamples(); track sample.id) {
+        <li>
+          <button type="button" class="play" [class.on]="playingId() === sample.id" (click)="togglePlay(sample)" aria-label="Écouter">
+            {{ playingId() === sample.id ? '■' : '▶' }}
+          </button>
+          <div class="meta">
+            @if (renamingId() === sample.id) {
+              <input
+                #renameInput
+                class="field"
+                type="text"
+                maxlength="60"
+                [value]="sample.name"
+                (keydown.enter)="renameInput.blur()"
+                (keydown.escape)="renamingId.set(null)"
+                (blur)="commitRename(sample, renameInput.value)"
+                autofocus
+              />
+            } @else {
+              <button type="button" class="name" (click)="renamingId.set(sample.id)" title="Renommer">{{ sample.name }}</button>
+            }
+            <span class="sub">
+              <span class="tag" [attr.data-source]="sample.source">{{ sourceLabel(sample.source) }}</span>
+              {{ formatDuration(sample.duration) }}
+              @if (padsUsing(sample); as pads) {
+                · pads {{ pads }}
+              }
+            </span>
+          </div>
+          <div class="actions">
+            <button type="button" class="btn small" (click)="assignToPad(sample)" title="Affecter au pad sélectionné">→ {{ selectedLabel() }}</button>
+            <button type="button" class="btn small" (click)="editSample(sample)" title="Découper">✂</button>
+            <button type="button" class="btn small danger" (click)="remove(sample)" title="Supprimer">✕</button>
+          </div>
+        </li>
+      } @empty {
+        <li class="notice">{{ library.loaded() ? 'Aucun sample. Enregistrez avec le micro ou importez des fichiers audio.' : 'Chargement…' }}</li>
+      }
+    </ul>
+  </section>
+</div>
