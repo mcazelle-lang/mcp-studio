@@ -179,9 +179,41 @@ export class AudioEngineService {
     this.input.connect(this.master);
     this.reverbSend.connect(convolver).connect(reverbReturn).connect(this.master);
     this.master.connect(limiter).connect(toCurveRange).connect(clipper).connect(ctx.destination);
+    void this.installLookaheadLimiter([limiter, toCurveRange, clipper]);
 
     this.running.set(ctx.state === 'running');
     ctx.addEventListener('statechange', () => this.running.set(ctx.state === 'running'));
+  }
+
+  /**
+   * Remplace le limiteur natif par un limiteur à anticipation (AudioWorklet) dès qu'il est chargé.
+   * Le DynamicsCompressorNode fait varier son gain au rythme des crêtes de l'onde : sur des sons
+   * purs superposés (accords de sinus, notes liées), cette modulation s'entend comme un crépitement.
+   * Le limiteur à anticipation garde un gain stable sur un son tenu. Sans AudioWorklet (page en HTTP
+   * hors localhost, vieux navigateur), la chaîne native reste en place.
+   */
+  private async installLookaheadLimiter(native: AudioNode[]): Promise<void> {
+    const ctx = this.ctx;
+    if (!ctx.audioWorklet || typeof AudioWorkletNode === 'undefined') return;
+    try {
+      await ctx.audioWorklet.addModule(new URL('limiter-worklet.js', document.baseURI).href);
+      const limiter = new AudioWorkletNode(ctx, 'master-limiter', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: 'explicit',
+        processorOptions: { ceiling: 0.9, lookahead: 0.005, hold: 0.08, release: 0.4 },
+      });
+      // Le compresseur natif ajoute automatiquement ≈ +3,6 dB de gain de compensation : on garde le même volume.
+      const makeup = ctx.createGain();
+      makeup.gain.value = 1.5;
+      this.master.disconnect();
+      this.master.connect(makeup).connect(limiter).connect(ctx.destination);
+      native.forEach((n) => n.disconnect());
+    } catch (err) {
+      console.warn('Limiteur à anticipation indisponible, limiteur natif conservé', err);
+    }
   }
 
   /** Doit être appelé dans un geste utilisateur (exigence des navigateurs mobiles). */
