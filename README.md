@@ -34,6 +34,8 @@ npm run build
 npm start            # http://localhost:3000
 ```
 
+Le build (`client/dist/`) est versionné : après un clone, `npm start` suffit. Après toute modification du client, relancer `npm run build` et committer `client/dist/` avec le code.
+
 ### Sur le téléphone
 
 Le micro n'est accessible qu'en **HTTPS** (sauf sur `localhost`). Pour tester depuis un téléphone du même Wi-Fi :

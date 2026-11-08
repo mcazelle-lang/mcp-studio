@@ -1,0 +1,1 @@
+import{Sb as t}from"./chunk-FBV6LXI3.js";function e(r){if(r instanceof t){if(r.status===0||r.status>=500)return`le serveur ne r\xE9pond pas (erreur ${r.status||"r\xE9seau"}). V\xE9rifiez que l\u2019API Node tourne (npm run dev ou npm start).`;if(typeof r.error?.error=="string")return r.error.error}return r instanceof Error?r.message:String(r)}export{e as a};
